@@ -25,6 +25,7 @@ func main() {
 	Banner()
 	flag.Parse()
 	checkArgs()
+	checkDocker()
 	if proxy != "" {
 		fmt.Println("设置代理: " + proxy)
 	}
@@ -43,6 +44,19 @@ func main() {
 	case "exp":
 		exp()
 	default:
+		os.Exit(-1)
+	}
+}
+
+func checkDocker() {
+	cmd := exec.Command("docker", "--version")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		fmt.Println("检查Docker是否存在时，出现错误")
+		panic(err)
+	}
+	if !strings.Contains(string(out), "Docker version") {
+		fmt.Println("docker未启动 或 不存在docker，请检查")
 		os.Exit(-1)
 	}
 }
