@@ -5,7 +5,8 @@
 ## 用法
 ```bash
 go get -u -v github.com/wjlin0/docker-daemon-api-rce
-docker-daemon-api-rce -u tcp://localhost:2375
+docker-daemon-api-rce -help
+docker-daemon-api-rce -target tcp://localhost:2375
 ```
 
 
